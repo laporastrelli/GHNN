@@ -114,13 +114,14 @@ def params_from_net(my_net):
     return params
 
 def predict_trajectories(nn, inp, max_time, **kwargs):
-    """A small helper to unify prediction of several trajectories with different NN types.
+    """
+    A small helper to unify prediction of several trajectories with different NN types.
 
     Args:
         nn (ghnn.nets.NNet): The NN that does the prediction.
         inp (pd.DataFrame, pd.Series): The initial conditions for the trajectories.
         max_time (float, float[]): The final time until when to predict.
-          Possibly different per trajctory.
+                                   Possibly different per trajctory.
 
     Returns:
         pd.DataFrame: The predicted trajectories.
@@ -128,16 +129,21 @@ def predict_trajectories(nn, inp, max_time, **kwargs):
     if not isinstance(max_time, list):
         max_time = [max_time]
     end_time = max(max_time)
-    predictions = nn.predict_path(inp[nn.settings['feature_names']].values, end_time, **kwargs)
+
+    predictions = nn.predict_path(inp[nn.settings['feature_names']].values, 
+                                  end_time, **kwargs)
+    
     if isinstance(inp, pd.DataFrame):
         index = pd.MultiIndex.from_product([inp.index, predictions.loc[0].index],
                                             names=["run", "timestep"])
         predictions.index = index
     runs = predictions.index.get_level_values(0).unique()
+    
     for i, run in enumerate(runs):
         steps = int(max_time[i] / nn.settings['step_size'])
         predictions.loc[run] = predictions.loc[(run, slice(0,steps)),:]
     predictions.dropna(how='all', inplace=True)
+    
     if isinstance(inp, pd.Series):
         predictions.index = predictions.loc[0].index
 

@@ -17,7 +17,7 @@ import pandas as pd
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from ghnn.plotting.helpers import *
-from ghnn.analyze import dataset_mse, dataset_mae
+from ghnn.analyze import dataset_mse, dataset_mae, dataset_mse_pos
 
 __all__ = ['plot_run', 'plot_run_rand', 'plot_pendulum', 'plot_pendulum_rand', 'plot_loss', 'plot_loss_moments', 'plot_data_mse', 'plot_data_mae', 'plot_data_mse_moments', 'plot_data_mae_moments']
 
@@ -343,7 +343,12 @@ def plot_data_mae(data_path, store_name, nn_paths, save_name=None, **kwargs):
 
     save_show(fig, save_name)
 
-def plot_data_mse_moments(data_path, store_name, nn_paths_list, stat, save_name=None, **kwargs):
+def plot_data_mse_moments(data_path, 
+                          store_name, 
+                          nn_paths_list, 
+                          stat, 
+                          save_name=None, 
+                          **kwargs):
     """Plots the moments of the mean of the MSE at each timestep for all trajectories predicted by multiple NNs.
 
     Args:
@@ -353,6 +358,11 @@ def plot_data_mse_moments(data_path, store_name, nn_paths_list, stat, save_name=
         stat (str): Type of statistic.
         save_name (str, path-like, binary file-like): Path where to save the plot.
           If None then the plot is shown and not saved.
+
+    kwargs:
+        test:      filename containing test runs ids
+        period_q:  period of the pendulum 
+        t_in_T:    ?????
     """
     if not isinstance(nn_paths_list[0], list):
         nn_paths_list = [nn_paths_list]
@@ -381,11 +391,82 @@ def plot_data_mse_moments(data_path, store_name, nn_paths_list, stat, save_name=
 
         ax.plot(mse['time'], m, label=name)
         ax.fill_between(mse['time'], l, u, alpha=0.2)
+
+        out_dir = os.path.dirname(save_name)
+        p_e_str = save_name.split("_")[-2:]
+        p_e_str = "_".join(p_e_str).replace(".png", "")
+        np.save(os.path.join(out_dir, f"tot_mse_{name}_{p_e_str}_m.npy"), m)
+        np.save(os.path.join(out_dir, f"tot_mse_{name}_{p_e_str}_l.npy"), l)
+        np.save(os.path.join(out_dir, f"tot_mse_{name}_{p_e_str}_u.npy"), u)
+
     ax.legend()
+    
+    ax.set_xlabel("time")
+    ax.set_ylabel("MSE")
+
+    if save_name.find("doub")!=-1:
+        ax.set_title("MSE comparison across models - Double Pendulum")
+    else:
+        ax.set_title("MSE comparison across models - Single Pendulum")
 
     save_show(fig, save_name)
 
-def plot_data_mae_moments(data_path, store_name, nn_paths_list, stat, save_name=None, **kwargs):
+    fig = plt.figure(figsize=(16, 9), dpi=100)
+    ax = fig.add_subplot()
+    for nn_paths in nn_paths_list:
+        mses = []
+        for nn_path in nn_paths:
+            mse = dataset_mse_pos(data_path, store_name, nn_path, **kwargs)
+            mses.append(mse['mse'])
+        mses = np.array(mses)
+
+        if stat == 'med_quart':
+            m, l, u = med_quart(mses)
+        elif stat == 'mean_var':
+            m, l, u = mean_var(mses)
+        else:
+            raise ValueError('Use either "med_quart" or "mean_var" for stat')
+
+        path = os.path.normpath(nn_path).split(os.path.sep)
+        if path[-1][:2] == 'nn':
+            name = path[-2]
+        else:
+            name = path[-1]
+
+        ax.plot(mse['time'], m, label=name)
+        ax.fill_between(mse['time'], l, u, alpha=0.2)
+
+        out_dir = os.path.dirname(save_name)
+        p_e_str = save_name.split("_")[-2:]
+        p_e_str = "_".join(p_e_str).replace(".png", "")
+        np.save(os.path.join(out_dir, f"pos_mse_{name}_{p_e_str}_m.npy"), m)
+        np.save(os.path.join(out_dir, f"pos_mse_{name}_{p_e_str}_l.npy"), l)
+        np.save(os.path.join(out_dir, f"pos_mse_{name}_{p_e_str}_u.npy"), u)
+
+    ax.legend()
+    
+    ax.set_xlabel("time")
+    ax.set_ylabel("position MSE")
+
+    if save_name.find("doub")!=-1:
+        ax.set_title("MSE comparison across models - Double Pendulum")
+    else:
+        ax.set_title("MSE comparison across models - Single Pendulum")
+    
+    save_name_dir = os.path.dirname(save_name)
+    
+    save_name_split = save_name.split("/")
+    save_name_out = save_name_split[-1].split("_")
+    save_name_out.insert(2, "q")
+    name_out_mse_q = "_".join(save_name_out)
+    save_show(fig, os.path.join(save_name_dir, name_out_mse_q))
+
+def plot_data_mae_moments(data_path, 
+                          store_name, 
+                          nn_paths_list, 
+                          stat, 
+                          save_name=None, 
+                          **kwargs):
     """Plots the moments of the mean of the MAE at each timestep for all trajectories predicted by multiple NNs.
 
     Args:
@@ -395,6 +476,11 @@ def plot_data_mae_moments(data_path, store_name, nn_paths_list, stat, save_name=
         stat (str): Type of statistic.
         save_name (str, path-like, binary file-like): Path where to save the plot.
           If None then the plot is shown and not saved.
+        
+        kwargs:
+            test, 
+            period_q, 
+            t_in_T
     """
     if not isinstance(nn_paths_list[0], list):
         nn_paths_list = [nn_paths_list]
@@ -424,5 +510,9 @@ def plot_data_mae_moments(data_path, store_name, nn_paths_list, stat, save_name=
         ax.plot(mae['time'], m, label=name)
         ax.fill_between(mae['time'], l, u, alpha=0.2)
     ax.legend()
+
+    ax.set_xlabel("time")
+    ax.set_ylabel("MAE")
+    ax.set_title("MAE comparison across models - 025T Single Pendulum")
 
     save_show(fig, save_name)

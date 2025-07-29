@@ -33,6 +33,8 @@ class NNet(Module, ABC):
 
     def __init__(self, path='.', device=None):
         super().__init__()
+
+        # Check if path provided is a directory or a file
         model_file = None
         settings_file = None
         if os.path.isdir(path):
@@ -43,18 +45,26 @@ class NNet(Module, ABC):
         elif os.path.isfile(path):
             if path[-7:] == 'nn.json':
                 model_file = path
-            elif path[-13:] == 'settings.json':
+            elif path[-13:] == 'settings.json' or path.find("ghnn_settings.json")!= -1:
                 settings_file = path
 
-        # Load settings
+        # Load settings from json file and update default settings
         self.settings = self.default_settings()
         if settings_file is not None:
+            print('-------------------------------------------')
+            print('Loading settings file from ', settings_file)
+            print('-------------------------------------------')
             with open(settings_file) as file_:
                 settings = json.load(file_)
                 self.settings.update(settings)
+        
+        # Load model from json file or create a new model
         if model_file is not None:
             self.load_from_json(model_file, device=device)
         else:
+            print('-------------------------------------------')
+            print('Creating new model with default settings.')
+            print('-------------------------------------------')
             # Settings sanity check
             if device:
                 self.settings['device'] = device
@@ -64,7 +74,8 @@ class NNet(Module, ABC):
                 torch.manual_seed(self.settings['seed'])
                 np.random.seed(self.settings['seed'])
             self.model = self.create_model()
-
+            
+        # Set attributes
         self.dtype = self.settings['dtype']
         self.device = self.settings['device']
 
@@ -96,7 +107,7 @@ class NNet(Module, ABC):
             'loss': 'mse',
             'loss_weights': False,
             'initial_epoch': 0,
-            'max_epochs': 25000,
+            'max_epochs': 2000,
             'batch_size': 200,
             'period_q': None,
             # Model
@@ -116,6 +127,11 @@ class NNet(Module, ABC):
         elif self.settings['device'][:3] == 'gpu' and len(self.settings['device']) > 3:
             if torch.cuda.device_count() <= int(self.settings['device'][3:]):
                 self.settings['device'] = 'gpu' + str(torch.cuda.device_count()-1)
+
+        print('------------------------------------------')
+        print(f"device: {self.settings['device']}")
+        print('------------------------------------------')
+
         if 'bodies' in self.settings and 'dims' in self.settings:
             names = product(['q', 'p'], self.settings['bodies'], self.settings['dims'])
             names = [qp+'_'+body+'_'+dim for qp,body,dim in names]
@@ -265,6 +281,14 @@ class NNet(Module, ABC):
         """Calculates the loss."""
         return self.loss(self(train_features), train_labels)
 
+    # ------------------------------------------------------------------------
+    # uses:
+    # - my_loss()
+    # - load_from_json()
+    # - save_to_json() 
+    # - to_dict()
+    # - load_data()
+    # ------------------------------------------------------------------------
     def train(self):
         """Trains the NN according to the settings and saves it to a json file afterwards."""
         if self.settings['nn_type'] == 'MLP_wsymp':
@@ -336,7 +360,19 @@ class NNet(Module, ABC):
             has_left = True
             while(has_left):
                 train_features, train_labels, has_left = data.get_batch(self.settings['batch_size'])
-                loss = self.my_loss(train_features, train_labels)
+                
+                # addition for horizon prediction
+                H = self.settings.get('horizon', 1)
+                if H > 1:
+                    # Multi-step: reshape flattened labels into (B, H, 2*dim)
+                    D2 = self.dim * 2
+                    B = train_labels.shape[0]
+                    train_labels = train_labels.reshape(B, H, D2)
+                    loss = self.loss(self(train_features).view(B * H, D2), 
+                                     train_labels.view(B * H, D2))
+                else:
+                    loss = self.my_loss(train_features, train_labels)
+                
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()

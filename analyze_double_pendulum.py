@@ -25,7 +25,14 @@ if __name__ == '__main__':
         os.mkdir(figures_path)
 
     nn_paths_list = generate_nn_paths_list(best_names)
-    ghnn.plotting.plot_data_mae_moments(data_path, store_name, nn_paths_list, 'mean_var', max_time=max_time, test='doub_pend_training.h5.1', period_q=math.pi, save_name=os.path.join(figures_path, 'doub_pend_mae.png'))
+    ghnn.plotting.plot_data_mae_moments(data_path, 
+                                        store_name, 
+                                        nn_paths_list, 
+                                        'mean_var',
+                                        max_time=max_time, 
+                                        test='doub_pend_training.h5.1', 
+                                        period_q=math.pi, 
+                                        save_name=os.path.join(figures_path, 'doub_pend_mae.png'))
 
     kwargs = {'energy': True, 'mse': True, 'max_time': max_time, 'phase_space': True, 'period_q': math.pi}
     nn_paths = [nn_path[1] for nn_path in nn_paths_list]

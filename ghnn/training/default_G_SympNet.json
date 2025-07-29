@@ -20,7 +20,7 @@
     "adam_beta2": 0.999,
 
     "loss": "mse",
-    "max_epochs": 25000,
+    "max_epochs": 2000,
     "batch_size": 200,
 
     "model_path": "."

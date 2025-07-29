@@ -6,8 +6,8 @@ def generate_nn_paths_list(names):
     nn_paths_list = []
     for name in names:
         nn_paths = []
-        for i in range(1,6):
-            nn_paths.append(os.path.join('..', 'NeuralNets_GHNN', 'm025T_pendulum', name, f'nn_{i}'))
+        for i in range(1,4):
+            nn_paths.append(os.path.join('..', 'NeuralNets_GHNN', 'm0167T_pendulum', name, f'nn_{i}'))
         nn_paths_list.append(nn_paths)
     return nn_paths_list
 
@@ -16,37 +16,41 @@ if __name__ == '__main__':
     results_dir = os.path.join(ghnn_dir, 'results')
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
+    
+    which = 'long'
 
     store_name = 'pend_all_runs.h5.1'
     num_runs = 500
-    data_path = os.path.join('..', 'Data')
+    data_path = os.path.join('..', 'Data_' + which)
 
     all_names = ['MLP', 'MLP_wsymp', 'MLP_wsymp_2', 'SympNet', 'HenonNet', 'double_HenonNet', 'GHNN']
+    
+    best_names = ['GHNN']
 
-    best_names = ['MLP', 'SympNet', 'GHNN']
-
-    figures_path = os.path.join(results_dir, 'Figures')
+    figures_path = os.path.join(results_dir, 'Figures_' + which)
     if not os.path.exists(figures_path):
         os.mkdir(figures_path)
 
     nn_paths_list = generate_nn_paths_list(best_names)
+    '''
     ghnn.plotting.plot_data_mae_moments(data_path, 
                                         store_name, 
                                         nn_paths_list, 
                                         'mean_var', 
                                         test='pend_training.h5.1', 
                                         period_q=math.pi, 
-                                        t_in_T=True, 
+                                        t_in_T=False, 
                                         save_name=os.path.join(figures_path, 'pend_mae.png'))
+    '''
     ghnn.plotting.plot_data_mse_moments(data_path,
                                         store_name, 
                                         nn_paths_list, 
                                         'mean_var', 
                                         test='pend_training.h5.1', 
                                         period_q=math.pi, 
-                                        t_in_T=True, 
+                                        t_in_T=False, 
                                         save_name=os.path.join(figures_path, 'pend_mse.png'))
-
+    
     kwargs = {'energy': True, 'mse': True, 'phase_space': True, 'period_q': math.pi}
     nn_paths = [nn_path[0] for nn_path in nn_paths_list]
     ghnn.plotting.predict_pendulum(data_path, 
