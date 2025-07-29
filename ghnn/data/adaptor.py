@@ -37,12 +37,14 @@ class Data_adaptor:
     """
 
     def __init__(self, data_path, max_time, data_frac, feature_names, label_names, device, dtype):
+        
         # Load the data
         features = pd.read_hdf(data_path, '/features')
         labels = pd.read_hdf(data_path, '/labels')
         val_labels = pd.read_hdf(data_path, '/val_labels')
         val_features = pd.read_hdf(data_path, '/val_features')
 
+        # get fraction of data
         features = features.iloc[:int(features.shape[0]*data_frac)]
         val_features = val_features.iloc[:int(val_features.shape[0]*data_frac)]
         if max_time:
@@ -51,6 +53,7 @@ class Data_adaptor:
         labels = labels.loc[features.index]
         val_labels = val_labels.loc[val_features.index]
 
+        # get the feature and label means
         fp = features[self.get_mom_features(feature_names)].abs().mean()
         fq = features[self.get_pos_features(feature_names)].abs().mean()
         lp = labels[self.get_mom_labels(label_names)].abs().mean()

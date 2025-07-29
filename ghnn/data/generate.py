@@ -141,7 +141,7 @@ def generate_circular_inputs(data_path, num_runs, store_name, nu=2e-1, min_radiu
     constants['code_version'] = version
     constants.to_hdf(os.path.join(data_path, store_name), key='/constants', format='fixed', **kwargs)
 
-def generate_pendulum_inputs(data_path, num_runs, store_name, nu_q=1, nu_p=0, seed=None):
+def generate_pendulum_inputs(data_path, num_runs, store_name, nu_q=1, nu_p=0, seed=None, half=False, init_pos="rand"):
     """Generates input coordinates for the single pendulum.
 
     Args:
@@ -158,10 +158,20 @@ def generate_pendulum_inputs(data_path, num_runs, store_name, nu_q=1, nu_p=0, se
     bodies = ['A']
     p_range = math.sqrt(2)
 
+    if half:
+        q_range = [-math.pi/2, math.pi/2]
+    else:
+        q_range = [nu_q*(-math.pi), nu_q*(math.pi)]
+
     kwargs = {'complib': 'zlib', 'complevel': 1}
     for i in range(num_runs):
         p = nu_p * np.random.uniform(-p_range, p_range, (1))
-        q = nu_q * np.random.uniform(-math.pi, math.pi, (1))
+
+        if init_pos == "rand":
+            q = nu_q * np.random.uniform(q_range[0], q_range[1], (1,))
+        elif init_pos == "fixed":
+            q = np.array([q_range[0]]) if np.random.rand() < 0.5 else np.array([q_range[1]])
+
         columns = [qp+'_'+body for (qp, body) in product(['q', 'p'], bodies)]
         init = pd.DataFrame([np.concatenate((q,p))], columns=columns)
         init.to_hdf(os.path.join(data_path, store_name), key='/run' + str(i), format='fixed', **kwargs)

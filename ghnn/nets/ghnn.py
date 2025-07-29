@@ -42,6 +42,23 @@ class GHNN(NNet):
         for i in range(self.settings['l_hamilt']):
             p, q = self.model[f'hamilton_{i+1}']([p, q])
         return torch.cat([p, q], dim=-1)
+    
+    def forward_(self, inputs):
+        # inputs: [batch, 2*dim]
+        if inputs.size(-1) != self.dim*2:
+            raise ValueError(f"Expected input size {2*self.dim}, got {inputs.size(-1)}")
+        # split into p, q
+        p, q = inputs[..., :self.dim], inputs[..., self.dim:]
+        
+        outputs = []
+        for _ in range(self.settings['horizon']):
+            # one symplectic integrator block per 'l_hamilt'
+            for i in range(self.settings['l_hamilt']):
+                p, q = self.model[f'hamilton_{i+1}']([p, q])
+            outputs.append(torch.cat([p, q], dim=-1))
+        
+        # stack along time axis → [batch, horizon, 2*dim]
+        return torch.stack(outputs, dim=1)
 
     def create_model(self):
         if not isinstance(self.settings['layer'], list):

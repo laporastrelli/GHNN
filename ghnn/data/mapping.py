@@ -261,8 +261,22 @@ def create_training_dataframe(data_path, store_name, training_store_name, num_ru
     train_features.to_hdf(save_name, key='/features', format='fixed', **kwargs)
     train_labels.to_hdf(save_name, key='/labels', format='fixed', **kwargs)
 
-def create_pendulum_training_dataframe(data_path, store_name, training_store_name, num_runs, step_size, feature_names=None, label_names=None, validation_share=0.1, test_share=0.1, max_time=None, shift_t0=False, interp='linear', seed=None):
-    """Creates from a combined DataFrame two (features, labels) DataFrames with constant time steps suitable for training.
+def create_pendulum_training_dataframe(data_path, 
+                                       store_name, 
+                                       training_store_name, 
+                                       num_runs, 
+                                       step_size, 
+                                       feature_names=None, 
+                                       label_names=None, 
+                                       validation_share=0.1, 
+                                       test_share=0.1, 
+                                       max_time=None, 
+                                       shift_t0=False, 
+                                       interp='linear', 
+                                       seed=None, 
+                                       horizon=1):
+    """Creates from a combined DataFrame two (features, labels) 
+    DataFrames with constant time steps suitable for training.
 
     For the creation of training data for timestepped NNs. Like SympNets.
     Time is never included in the feature names.
@@ -287,7 +301,7 @@ def create_pendulum_training_dataframe(data_path, store_name, training_store_nam
         seed (int): Random seed for split in train/validation/test data.
     """
     load_name = os.path.join(data_path, store_name)
-    data = pd.read_hdf(load_name, '/all_runs')
+    data      = pd.read_hdf(load_name, '/all_runs')
     constants = pd.read_hdf(load_name, '/constants')
 
     if not feature_names:
@@ -315,7 +329,8 @@ def create_pendulum_training_dataframe(data_path, store_name, training_store_nam
             print('The last 100 runs took', time_spend/60, 'minutes.')
             print('Probably', total_time/i*(num_runs-i)/60, 'minutes left.')
         run = data.loc[i]
-        f = interp1d(run['time'].values, run[label_names].values, axis=0, kind=interp, fill_value='extrapolate')
+        f = interp1d(run['time'].values, run[label_names].values, 
+                     axis=0, kind=interp, fill_value='extrapolate')
 
         if shift_t0:
             x0s = np.arange(0, step_size, constants['step_size'])
@@ -333,12 +348,32 @@ def create_pendulum_training_dataframe(data_path, store_name, training_store_nam
             if (dist2 * len(x)) > (0.1*constants['step_size']):
                 print('Warning heavily interpolating the data!!!')
             if len(x) > 1:
-                train_features.append(np.concatenate((run_index, f(x[:-1])), axis=1))
-                train_labels.append(f(x[1:]))
+                if horizon > 1:
+                    train_features.append(np.concatenate((run_index[:1], f(x[:1])), axis=1))
+                    label = np.expand_dims(np.transpose(f(x[1:])), axis=0)                  # shape (T-1, 2*dim)
+                    train_labels.append(label)
+                else:   
+                    train_features.append(np.concatenate((run_index, f(x[:-1])), axis=1))
+                    train_labels.append(f(x[1:]))
+                    
+    
+        # only now build the flattened names for your label‐DataFrame
+        if horizon > 1:
+            final_label_names = [
+                f"{var}_{step}"
+                for step in range(1, horizon+1)
+                for var in label_names
+            ]
+
+    print("########################")
+    print(train_features[0].shape)
+    print(train_labels[0].shape)
+    print("########################")
 
     train_features = pd.DataFrame(np.concatenate(train_features, axis = 0),
                                   columns=['run']+feature_names).astype({'run':int})
-    train_labels = pd.DataFrame(np.concatenate(train_labels, axis = 0), columns=label_names)
+    train_labels = pd.DataFrame(np.concatenate(train_labels, axis = 0), 
+                                columns=final_label_names)
 
     for body in constants['bodies']:
         g_pi = train_features[train_features['q_'+body] > math.pi].index
@@ -361,11 +396,11 @@ def create_pendulum_training_dataframe(data_path, store_name, training_store_nam
     train_runs = np.isin(train_features['run'], perm[int((validation_share+test_share)*num_runs):])
 
     validation_features = train_features[validation_runs]
-    validation_labels = train_labels[validation_runs]
-    test_features = train_features[test_runs]
-    test_labels = train_labels[test_runs]
-    train_features = train_features[train_runs]
-    train_labels = train_labels[train_runs]
+    validation_labels   = train_labels[validation_runs]
+    test_features       = train_features[test_runs]
+    test_labels         = train_labels[test_runs]
+    train_features      = train_features[train_runs]
+    train_labels        = train_labels[train_runs]
 
     print('Total time for' , num_runs, 'runs is', (time.time() - start_time) / 60, 'minutes.')
 
