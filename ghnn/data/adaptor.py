@@ -53,7 +53,6 @@ class Data_adaptor:
         labels = labels.loc[features.index]
         val_labels = val_labels.loc[val_features.index]
 
-        # get the feature and label means
         fp = features[self.get_mom_features(feature_names)].abs().mean()
         fq = features[self.get_pos_features(feature_names)].abs().mean()
         lp = labels[self.get_mom_labels(label_names)].abs().mean()

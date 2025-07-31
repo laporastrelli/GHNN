@@ -33,8 +33,8 @@ class NNet(Module, ABC):
 
     def __init__(self, path='.', device=None):
         super().__init__()
-        
-        # initialize settings and model files
+
+        # Check if path provided is a directory or a file
         model_file = None
         settings_file = None
 
@@ -47,26 +47,21 @@ class NNet(Module, ABC):
         elif os.path.isfile(path):
             if path[-7:] == 'nn.json':
                 model_file = path
-            elif path[-13:] == 'settings.json' or path.find("ghnn_settings.json")!= -1:
-                print('-------------------------------------------')
-                print("Settings file found!")
-                print('-------------------------------------------')
+            elif path[-13:] == 'settings.json':
                 settings_file = path
 
-        # load settings
+        # Load settings
         self.settings = self.default_settings()
         if settings_file is not None:
-            print('-------------------------------------------')
-            print('Loading settings file from', settings_file)
-            print('-------------------------------------------')
             with open(settings_file) as file_:
                 settings = json.load(file_)
                 self.settings.update(settings)
-        
-        # load model from model file
         if model_file is not None:
             self.load_from_json(model_file, device=device)
         else:
+            print('-------------------------------------------')
+            print('Creating new model with default settings.')
+            print('-------------------------------------------')
             # Settings sanity check
             if device:
                 self.settings['device'] = device
@@ -76,7 +71,8 @@ class NNet(Module, ABC):
                 torch.manual_seed(self.settings['seed'])
                 np.random.seed(self.settings['seed'])
             self.model = self.create_model()
-
+            
+        # Set attributes
         self.dtype = self.settings['dtype']
         self.device = self.settings['device']
 

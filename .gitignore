@@ -160,5 +160,5 @@ cython_debug/
 #.idea/
 
 results/
-outputs/    
+outputs/
 z_outdated_files/
