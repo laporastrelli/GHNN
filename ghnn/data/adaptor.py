@@ -37,6 +37,7 @@ class Data_adaptor:
     """
 
     def __init__(self, data_path, max_time, data_frac, feature_names, label_names, device, dtype):
+        
         # Load the data
         features = pd.read_hdf(data_path, '/features')
         labels = pd.read_hdf(data_path, '/labels')
@@ -52,7 +53,6 @@ class Data_adaptor:
         labels = labels.loc[features.index]
         val_labels = val_labels.loc[val_features.index]
 
-        
         fp = features[self.get_mom_features(feature_names)].abs().mean()
         fq = features[self.get_pos_features(feature_names)].abs().mean()
         lp = labels[self.get_mom_labels(label_names)].abs().mean()

@@ -5,30 +5,30 @@ import argparse
 
 def run(dataset, root_data_dir, period_q, max_epochs):
 
-    # create ouptut root directory
+    # 1) LOGISTICS: create ouptut root directory
     root_nn_path = os.path.join('..', 'GHNN', 'outputs', 'NeuralNets_GHNN')
     if not os.path.exists(root_nn_path):
         os.mkdir(root_nn_path)
 
-    # create dataset specific ouput directory
+    # 1) LOGISTICS: create dataset specific ouput directory
     dataset_nn_path = os.path.join(root_nn_path, dataset)
     if not os.path.isdir(dataset_nn_path):
         os.mkdir(dataset_nn_path)
 
-    # get list of models to train
+    # 1) LOGISTICS: get list of models to train
     nn_types = ['GHNN', 'SympNet', 'HenonNet', 'MLP']
 
-    # iterate over all models
+    # 1) LOGISTICS: iterate over all models
     for nn_type in nn_types:
 
         print(f"Training {nn_type} on {dataset} .. ")
 
-        # create model-specific output directory
+        # 1) LOGISTICS: create model-specific output directory
         nn_path = os.path.join(dataset_nn_path, nn_type)
         if not os.path.isdir(nn_path):
             os.mkdir(nn_path)
 
-        # load model-specifc default settings json file
+        # 2) JSON SETTINGS: load model-specifc default settings json file
         if nn_type == 'SympNet':
             with open(os.path.join('ghnn', 'training', 'default_G_SympNet.json')) as file_:
                 settings = json.load(file_)
@@ -43,8 +43,8 @@ def run(dataset, root_data_dir, period_q, max_epochs):
         else:
             with open(os.path.join('ghnn', 'training', f'default_{nn_type}.json')) as file_:
                 settings = json.load(file_)
-
-        # update settings
+        
+        # 2) JSON SETTINGS: update settings with dataset-specific parameters
         data_path = os.path.join(root_data_dir, dataset, 'pend_training.h5.1')
         settings['data_path'] = data_path
         del(settings['bodies'])
@@ -65,7 +65,8 @@ def run(dataset, root_data_dir, period_q, max_epochs):
         else: 
             settings['t_in_T'] = False
             settings['period_q'] = period_q            
-
+        
+        # 3) LOGISTICS-2: create a new run directory
         run_ints = []
         existing_runs = os.listdir(os.path.join(nn_path))
         for existing_run in existing_runs:
@@ -77,7 +78,8 @@ def run(dataset, root_data_dir, period_q, max_epochs):
         else:
             start_idx = max(run_ints) + 1
             print(f'There are existing runs in the folder. Starting from run {start_idx}!')
-            
+        
+        # 3) LOGISTICS-2: create 5 runs with different seeds
         for i in range(start_idx, start_idx + 5):
             settings['seed'] = i
             run_path = os.path.join(nn_path, f'nn_{i}')
@@ -88,6 +90,7 @@ def run(dataset, root_data_dir, period_q, max_epochs):
             with open(os.path.join(run_path, 'settings.json'), 'w') as file_:
                 json.dump(settings, file_, indent=4, separators=(',', ': '))
 
+            # 4) RUN TRAINING: run the training
             wd = os.getcwd()
             os.chdir(run_path)
             ghnn.training.train_from_folder()

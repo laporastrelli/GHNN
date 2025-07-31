@@ -6,6 +6,7 @@ __all__ = ['train_from_folder']
 
 def train_from_folder():
     """Starts the training from the current directory. Expects a 'settings.json' file."""
+    
     my_net = net_from_dir('settings.json')
 
     if os.path.exists('checkpoints'):

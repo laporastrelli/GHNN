@@ -370,7 +370,6 @@ class Double_SE_HamiltonModule(Module):
     def forward(self, inputs):
         """Defines the computation performed at every call."""
         p, q = inputs
-
         inner = q @ self.params['K1_p'] + self.params['b1_p']
         act_inner = self.ant_act(inner) @ self.params['K2_p'] + self.params['b2_p']
         nex = (self.act2(act_inner) * self.params['a_p']) @ self.params['K2_p'].t()

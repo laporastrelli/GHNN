@@ -37,6 +37,8 @@ class NNet(Module, ABC):
         # Check if path provided is a directory or a file
         model_file = None
         settings_file = None
+
+        # find model and settings files
         if os.path.isdir(path):
             if os.path.isfile(os.path.join(path, 'nn.json')):
                 model_file = os.path.join(path, 'nn.json')
@@ -45,20 +47,15 @@ class NNet(Module, ABC):
         elif os.path.isfile(path):
             if path[-7:] == 'nn.json':
                 model_file = path
-            elif path[-13:] == 'settings.json' or path.find("ghnn_settings.json")!= -1:
+            elif path[-13:] == 'settings.json':
                 settings_file = path
 
-        # Load settings from json file and update default settings
+        # Load settings
         self.settings = self.default_settings()
         if settings_file is not None:
-            print('-------------------------------------------')
-            print('Loading settings file from ', settings_file)
-            print('-------------------------------------------')
             with open(settings_file) as file_:
                 settings = json.load(file_)
                 self.settings.update(settings)
-        
-        # Load model from json file or create a new model
         if model_file is not None:
             self.load_from_json(model_file, device=device)
         else:
@@ -291,14 +288,19 @@ class NNet(Module, ABC):
     # ------------------------------------------------------------------------
     def train(self):
         """Trains the NN according to the settings and saves it to a json file afterwards."""
+        
+        # load data according to settings file (data is a Data_adaptor object)
         if self.settings['nn_type'] == 'MLP_wsymp':
             data, coordinates = self.load_data()
-        else:
+        else:       
             data = self.load_data()
+        
+        # loads pos_scaling and mom_scaling to settings
         test_data_loaded = False
         self.settings['pos_scaling'] = data.pos_scaling
         self.settings['mom_scaling'] = data.mom_scaling
 
+        # set optimizer based on settings
         if self.settings['optimizer'] == 'adam':
             betas = (self.settings['adam_beta1'], self.settings['adam_beta2'])
             self.optimizer = torch.optim.Adam(self.parameters(), lr=self.settings['learning_rate'], betas=betas)
@@ -306,7 +308,8 @@ class NNet(Module, ABC):
             self.optimizer = torch.optim.SGD(self.parameters(), lr=self.settings['learning_rate'])
         else:
             raise NotImplementedError
-
+        
+        # set learning rate scheduler based on settings
         if self.settings['lr_scheduler'] == 'linear':
             start_factor = 1 - self.settings['initial_epoch']/self.settings['max_epochs']
             total_iters = self.settings['max_epochs'] - self.settings['initial_epoch']
@@ -328,6 +331,7 @@ class NNet(Module, ABC):
                                                                    cooldown=0,
                                                                    verbose=True)
 
+        # set loss function based on settings
         if self.settings['loss'] == 'mse':
             if self.settings['nn_type'] == 'MLP_wsymp':
                 self.loss = mse_symp_loss(coordinates, self.settings['symp_lambda'])
